@@ -558,56 +558,32 @@ bool MGLCipherHostObject::InitAuthenticated(const char *cipher_type, int iv_len,
     }
   } else {
     if (auth_tag_len == kNoAuthTagLength) {
-      // We treat ChaCha20-Poly1305 specially. Like GCM, the authentication tag
-      // length defaults to 16 bytes when encrypting. Unlike GCM, the
-      // authentication tag length also defaults to 16 bytes when decrypting,
-      // whereas GCM would accept any valid authentication tag length.
       if (EVP_CIPHER_CTX_nid(ctx_) == NID_chacha20_poly1305) {
         auth_tag_len = 16;
       } else {
-        //        throw std::runtime_error("authTagLength required for cipher
-        //        type");
-        //            THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
-        //                    env(), "authTagLength required for %s",
-        //                    cipher_type);
         return false;
       }
     }
 
-    // TODO(tniessen) Support CCM decryption in FIPS mode
-
 #if OPENSSL_VERSION_MAJOR >= 3
     if (mode == EVP_CIPH_CCM_MODE && kind_ == kDecipher &&
         EVP_default_properties_is_fips_enabled(nullptr)) {
-#else
-    if (mode == EVP_CIPH_CCM_MODE && !isCipher_ && FIPS_mode()) {
-#endif
-      //      throw std::runtime_error("CCM encryption not supported in FIPS
-      //      mode");
-      //          THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env(),
-      //                                                 "CCM encryption not
-      //                                                 supported in FIPS
-      //                                                 mode");
-      return false;
+        return false;
     }
+#else
+    if (mode == EVP_CIPH_CCM_MODE && !isCipher_) {
+        return false;
+    }
+#endif
 
-    // Tell OpenSSL about the desired length.
     if (!EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_AEAD_SET_TAG, auth_tag_len,
                              nullptr)) {
-      //      throw std::runtime_error("Invalid authentication tag length");
-      //          THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
-      //                  env(), "Invalid authentication tag length: %u",
-      //                  auth_tag_len);
       return false;
     }
 
-    // Remember the given authentication tag length for later.
     auth_tag_len_ = auth_tag_len;
 
     if (mode == EVP_CIPH_CCM_MODE) {
-      // Restrict the message length to min(INT_MAX, 2^(8*(15-iv_len))-1) bytes.
-      // TODO(osp) implement this check
-      //          CHECK(iv_len >= 7 && iv_len <= 13);
       max_message_size_ = INT_MAX;
       if (iv_len == 12) max_message_size_ = 16777215;
       if (iv_len == 13) max_message_size_ = 65535;
@@ -616,7 +592,6 @@ bool MGLCipherHostObject::InitAuthenticated(const char *cipher_type, int iv_len,
 
   return true;
 }
-
 bool MGLCipherHostObject::CheckCCMMessageLength(int message_len) {
   // TODO(osp) Implement this check
   //      CHECK(EVP_CIPHER_CTX_mode(ctx_) == EVP_CIPH_CCM_MODE);

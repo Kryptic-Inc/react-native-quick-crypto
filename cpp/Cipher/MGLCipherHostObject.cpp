@@ -576,20 +576,9 @@ bool MGLCipherHostObject::InitAuthenticated(const char *cipher_type, int iv_len,
 
     // TODO(tniessen) Support CCM decryption in FIPS mode
 
-#if OPENSSL_VERSION_MAJOR >= 3
-    if (mode == EVP_CIPH_CCM_MODE && kind_ == kDecipher &&
-        EVP_default_properties_is_fips_enabled(nullptr)) {
-#else
-    if (mode == EVP_CIPH_CCM_MODE && !isCipher_ && FIPS_mode()) {
-#endif
-      //      throw std::runtime_error("CCM encryption not supported in FIPS
-      //      mode");
-      //          THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env(),
-      //                                                 "CCM encryption not
-      //                                                 supported in FIPS
-      //                                                 mode");
-      return false;
-    }
+if (mode == EVP_CIPH_CCM_MODE && kind_ == kDecipher) {
+  return false;
+}
 
     // Tell OpenSSL about the desired length.
     if (!EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_AEAD_SET_TAG, auth_tag_len,

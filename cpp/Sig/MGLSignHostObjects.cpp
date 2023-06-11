@@ -19,26 +19,26 @@ namespace margelo {
 
 bool ValidateDSAParameters(EVP_PKEY* key) {
   /* Validate DSA2 parameters from FIPS 186-4 */
-#if OPENSSL_VERSION_MAJOR >= 3
-  if (EVP_default_properties_is_fips_enabled(nullptr) &&
-      EVP_PKEY_DSA == EVP_PKEY_base_id(key)) {
-#else
-  if (FIPS_mode() && EVP_PKEY_DSA == EVP_PKEY_base_id(key)) {
-#endif
-    const DSA* dsa = EVP_PKEY_get0_DSA(key);
-    const BIGNUM* p;
-    DSA_get0_pqg(dsa, &p, nullptr, nullptr);
-    size_t L = BN_num_bits(p);
-    const BIGNUM* q;
-    DSA_get0_pqg(dsa, nullptr, &q, nullptr);
-    size_t N = BN_num_bits(q);
 
-    return (L == 1024 && N == 160) || (L == 2048 && N == 224) ||
-           (L == 2048 && N == 256) || (L == 3072 && N == 256);
+  // Check if the key type is DSA.
+  if (EVP_PKEY_DSA != EVP_PKEY_base_id(key)) {
+    return true;  // Not a DSA key, so validation passes by default.
   }
 
-  return true;
+  // Check the DSA parameters.
+  const DSA* dsa = EVP_PKEY_get0_DSA(key);
+  const BIGNUM* p;
+  DSA_get0_pqg(dsa, &p, nullptr, nullptr);
+  size_t L = BN_num_bits(p);
+  const BIGNUM* q;
+  DSA_get0_pqg(dsa, nullptr, &q, nullptr);
+  size_t N = BN_num_bits(q);
+
+  // Validate the parameters according to the DSA standard.
+  return (L == 1024 && N == 160) || (L == 2048 && N == 224) ||
+         (L == 2048 && N == 256) || (L == 3072 && N == 256);
 }
+
 
 bool ApplyRSAOptions(const ManagedEVPPKey& pkey, EVP_PKEY_CTX* pkctx,
                      int padding, std::optional<int> salt_len) {
